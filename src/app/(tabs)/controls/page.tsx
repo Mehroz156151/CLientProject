@@ -11,18 +11,19 @@ const controls = [
   {
     href: "/messages",
     title: "MESSAGERIE",
-    image: null,
+    image: "/images/mail.png",
   },
   {
     href: "/controls/search/identite",
     title: "RENS",
     image: "/images/rens.png",
   },
-  {
-    href: "/controls/search/vehicule",
-    title: "FOVES",
-    image: "/images/foves.png",
-  },
+{
+  href: "/controls/search/vehicule",
+  title: "FOVES",
+  image: "/images/foves.png",
+  rotation: "rotate-354",
+},
   {
     href: "/controls/search/identite",
     title: "PERSONNES",
@@ -32,6 +33,7 @@ const controls = [
     href: "/controls/search/vehicule",
     title: "VÉHICULES",
     image: "/images/vehicules.png",
+    rotation: "rotate-354",
   },
   {
     href: "/controls/search/document",
@@ -60,34 +62,21 @@ export default function ControlsPage() {
                 <span className="relative h-2.5 w-2.5 rounded-full bg-blue" />
               </span>
 
-              <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-blue">
-                NEXUS CONTROL
-              </span>
+              <h1 className="font-display text-3xl font-bold tracking-wide text-navy sm:text-4xl">
+                Control
+              </h1>
             </div>
-
-            <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted/60">
-              07
-            </span>
           </div>
 
           <div className="flex items-end justify-between gap-5">
             <div>
-              <h1 className="font-display text-3xl font-bold tracking-wide text-navy sm:text-4xl">
-                CONTRÔLES
-              </h1>
+
 
               <p className="mt-2 max-w-md text-sm leading-relaxed text-muted sm:text-base">
                 Sélectionnez le type de contrôle que vous souhaitez effectuer.
               </p>
             </div>
 
-            <div className="hidden items-center gap-2 rounded-full border border-border px-3.5 py-2 sm:flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-blue" />
-
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
-                7 contrôles disponibles
-              </span>
-            </div>
           </div>
 
           <div className="mt-6 h-px w-full bg-border" />
@@ -98,7 +87,7 @@ export default function ControlsPage() {
           aria-label="Types de contrôles"
           className="grid grid-cols-2 gap-x-5 gap-y-11 sm:grid-cols-3 sm:gap-x-10 sm:gap-y-14 lg:gap-x-16"
         >
-          {controls.map((item, index) => (
+          {controls.map((item) => (
             <Link
               key={item.title}
               href={item.href}
@@ -120,18 +109,12 @@ export default function ControlsPage() {
                       alt={item.title}
                       width={125}
                       height={125}
-                      className="h-full w-full object-contain transition-transform duration-300 ease-out group-hover:scale-110 group-active:scale-95"
-                    />
+className={`h-full w-full object-contain transition-transform duration-300 ease-out group-hover:scale-110 group-active:scale-95 ${item.rotation ?? ""}`}                    />
                   ) : (
                     <span className="flex items-center justify-center text-blue transition-all duration-300 group-hover:scale-110 group-hover:text-blue-light group-active:scale-95">
                       <IconMessage size={54} />
                     </span>
                   )}
-                </span>
-
-                {/* Number */}
-                <span className="absolute right-1 top-1 text-[9px] font-bold tracking-[0.15em] text-muted/40 transition-colors duration-200 group-hover:text-blue/60">
-                  {String(index + 1).padStart(2, "0")}
                 </span>
               </div>
 
