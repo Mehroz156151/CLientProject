@@ -124,7 +124,7 @@ export default function ControlsPage() {
                     />
                   ) : (
                     <span className="flex items-center justify-center text-blue transition-all duration-300 group-hover:scale-110 group-hover:text-blue-light group-active:scale-95">
-                      <IconMessage size={54} strokeWidth={1.7} />
+                      <IconMessage size={54} />
                     </span>
                   )}
                 </span>
