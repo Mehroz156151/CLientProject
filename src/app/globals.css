@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+:root {
+  --background: #eef1f6;
+  --surface: #ffffff;
+  --surface-muted: #f4f6fa;
+  --border: #dde3ed;
+  --navy: #0f2350;
+  --navy-dark: #0a1938;
+  --blue: #1c3f7c;
+  --blue-light: #2f5aa8;
+  --red: #c8322d;
+  --green: #1f9d55;
+  --amber: #d97706;
+  --foreground: #16223f;
+  --muted: #64748b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-navy: var(--navy);
+  --color-navy-dark: var(--navy-dark);
+  --color-blue: var(--blue);
+  --color-blue-light: var(--blue-light);
+  --color-red: var(--red);
+  --color-green: var(--green);
+  --color-amber: var(--amber);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-rajdhani);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+}
+
+.hud-corner {
+  position: relative;
+}
+
+.hud-corner::before,
+.hud-corner::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: var(--blue-light);
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.hud-corner::before {
+  top: 7px;
+  left: 7px;
+  border-top: 3px solid var(--blue-light);
+  border-left: 3px solid var(--blue-light);
+}
+
+.hud-corner::after {
+  bottom: 7px;
+  right: 7px;
+  border-bottom: 3px solid var(--blue-light);
+  border-right: 3px solid var(--blue-light);
+}
+
+@keyframes scan-sweep {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.animate-scan-sweep {
+  animation: scan-sweep 2.2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+/* html5-qrcode injects its own shaded scan-region overlay as sibling
+   elements next to the <video> — we hide those and drive the visuals
+   ourselves so it doesn't double up with our HUD viewfinder. */
+#qr-reader-viewport {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+#qr-reader-viewport > *:not(video) {
+  display: none !important;
+}
+
+#qr-reader-viewport video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  position: absolute !important;
+  inset: 0 !important;
+}
