@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -10,9 +11,6 @@ import {
   BarcodeFormat,
   DecodeHintType,
 } from "@zxing/library";
-import Badge from "./Badge";
-
-const READER_ID = "qr-reader-viewport";
 
 type ScannerStatus = "loading" | "scanning" | "error";
 
@@ -32,44 +30,10 @@ function extractToken(rawValue: string): string | null {
       return decodeURIComponent(parts[verifyIndex + 1]);
     }
   } catch {
-    // QR is not a URL.
+    // QR code does not contain a URL.
   }
 
   return value;
-}
-
-async function findCamera(): Promise<string | null> {
-  if (!navigator.mediaDevices?.enumerateDevices) {
-    return null;
-  }
-
-  const devices =
-    await navigator.mediaDevices.enumerateDevices();
-
-  const cameras = devices.filter(
-    (device) => device.kind === "videoinput"
-  );
-
-  if (cameras.length === 0) {
-    return null;
-  }
-
-  /*
-   * Prefer a rear/environment camera when the browser
-   * exposes one. On Windows desktop, there may only be
-   * an integrated or USB camera, so fall back to it.
-   */
-  const preferred = cameras.find((camera) => {
-    const label = camera.label.toLowerCase();
-
-    return (
-      label.includes("back") ||
-      label.includes("rear") ||
-      label.includes("environment")
-    );
-  });
-
-  return (preferred ?? cameras[0]).deviceId;
 }
 
 export default function QrScanner({
@@ -85,14 +49,17 @@ export default function QrScanner({
   const [errorMessage, setErrorMessage] =
     useState("");
 
+  const videoRef =
+    useRef<HTMLVideoElement | null>(null);
+
   const readerRef =
     useRef<BrowserQRCodeReader | null>(null);
 
   const controlsRef =
     useRef<IScannerControls | null>(null);
 
-  const videoRef =
-    useRef<HTMLVideoElement | null>(null);
+  const streamRef =
+    useRef<MediaStream | null>(null);
 
   const mountedRef =
     useRef(false);
@@ -106,7 +73,7 @@ export default function QrScanner({
 
     let cancelled = false;
 
-    async function cleanup() {
+    const stopCamera = () => {
       const controls = controlsRef.current;
       controlsRef.current = null;
 
@@ -118,41 +85,64 @@ export default function QrScanner({
         }
       }
 
-      const video = videoRef.current;
-      videoRef.current = null;
+      const stream = streamRef.current;
+      streamRef.current = null;
 
-      if (video) {
-        const stream = video.srcObject;
-
-        if (stream instanceof MediaStream) {
-          for (const track of stream.getTracks()) {
-            try {
-              track.stop();
-            } catch {
-              // Ignore already stopped tracks.
-            }
-          }
-        }
-
-        video.srcObject = null;
-
-        /*
-         * Only remove the exact video element that we created.
-         * Never clear the entire scanner container.
-         */
-        if (video.parentNode) {
+      if (stream) {
+        for (const track of stream.getTracks()) {
           try {
-            video.parentNode.removeChild(video);
+            track.stop();
           } catch {
-            // Ignore DOM teardown races.
+            // Ignore already stopped tracks.
           }
         }
       }
 
-      readerRef.current = null;
-    }
+      const video = videoRef.current;
 
-    async function startScanner() {
+      if (video) {
+        try {
+          video.pause();
+        } catch {
+          // Ignore pause errors.
+        }
+
+        video.srcObject = null;
+      }
+
+      readerRef.current = null;
+    };
+
+    const handleResult = (result: any) => {
+      if (
+        !result ||
+        cancelled ||
+        !mountedRef.current ||
+        processingRef.current
+      ) {
+        return;
+      }
+
+      const text = result.getText();
+
+      const token = extractToken(text);
+
+      if (!token) {
+        return;
+      }
+
+      processingRef.current = true;
+
+      stopCamera();
+
+      router.push(
+        `/verify/${encodeURIComponent(
+          token
+        )}?type=${encodeURIComponent(type)}`
+      );
+    };
+
+    const startScanner = async () => {
       try {
         setStatus("loading");
         setErrorMessage("");
@@ -163,28 +153,37 @@ export default function QrScanner({
           );
         }
 
-        const container =
-          document.getElementById(READER_ID);
+        const video = videoRef.current;
 
-        if (!container) {
+        if (!video) {
           throw new Error(
-            "Le conteneur du scanner QR est introuvable."
+            "La vidéo du scanner est introuvable."
           );
         }
 
         /*
-         * First request permission.
-         *
-         * This is important because many browsers don't
-         * expose useful camera labels until permission has
-         * been granted.
+         * Open the camera only once.
          */
-        let permissionStream: MediaStream;
+        let stream: MediaStream;
 
         try {
-          permissionStream =
+          stream =
             await navigator.mediaDevices.getUserMedia({
-              video: true,
+              video: {
+                width: {
+                  ideal: 1920,
+                },
+                height: {
+                  ideal: 1080,
+                },
+                frameRate: {
+                  ideal: 30,
+                  max: 30,
+                },
+                facingMode: {
+                  ideal: "environment",
+                },
+              },
               audio: false,
             });
         } catch {
@@ -193,28 +192,61 @@ export default function QrScanner({
           );
         }
 
-        for (const track of permissionStream.getTracks()) {
-          track.stop();
-        }
+        if (
+          cancelled ||
+          !mountedRef.current
+        ) {
+          for (const track of stream.getTracks()) {
+            track.stop();
+          }
 
-        if (cancelled || !mountedRef.current) {
           return;
         }
 
-        const cameraId = await findCamera();
+        streamRef.current = stream;
 
-        if (cancelled || !mountedRef.current) {
+        /*
+         * Give the stream directly to the React-owned
+         * video element.
+         */
+        video.srcObject = stream;
+        video.muted = true;
+        video.playsInline = true;
+        video.autoplay = true;
+
+        video.setAttribute(
+          "playsinline",
+          "true"
+        );
+
+        video.setAttribute(
+          "webkit-playsinline",
+          "true"
+        );
+
+        try {
+          await video.play();
+        } catch {
+          // Browser may already have started autoplay.
+        }
+
+        if (
+          cancelled ||
+          !mountedRef.current
+        ) {
+          stopCamera();
           return;
         }
 
         /*
-         * Configure ZXing specifically for QR codes.
+         * ZXing QR-only configuration.
          */
         const hints = new Map();
 
-        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-          BarcodeFormat.QR_CODE,
-        ]);
+        hints.set(
+          DecodeHintType.POSSIBLE_FORMATS,
+          [BarcodeFormat.QR_CODE]
+        );
 
         hints.set(
           DecodeHintType.TRY_HARDER,
@@ -230,152 +262,13 @@ export default function QrScanner({
         readerRef.current = reader;
 
         /*
-         * Create exactly one video element.
+         * Decode directly from the video element.
          */
-        const video =
-          document.createElement("video");
-
-        video.className =
-          "block h-full w-full object-cover";
-
-        video.autoplay = true;
-        video.muted = true;
-        video.playsInline = true;
-
-        video.setAttribute(
-          "playsinline",
-          "true"
-        );
-
-        video.setAttribute(
-          "muted",
-          "true"
-        );
-
-        videoRef.current = video;
-
-        container.appendChild(video);
-
-        if (cancelled || !mountedRef.current) {
-          await cleanup();
-          return;
-        }
-
-        let controls: IScannerControls;
-
-        /*
-         * If we found an actual camera device, use it
-         * explicitly. This is more reliable on Windows
-         * than relying only on facingMode.
-         */
-        if (cameraId) {
-          controls =
-            await reader.decodeFromVideoDevice(
-              cameraId,
-              video,
-              (result) => {
-                if (
-                  !result ||
-                  cancelled ||
-                  !mountedRef.current ||
-                  processingRef.current
-                ) {
-                  return;
-                }
-
-                const text =
-                  result.getText();
-
-                const token =
-                  extractToken(text);
-
-                if (!token) {
-                  return;
-                }
-
-                processingRef.current = true;
-
-                void cleanup().finally(() => {
-                  if (
-                    !cancelled &&
-                    mountedRef.current
-                  ) {
-                    router.push(
-                      `/verify/${encodeURIComponent(
-                        token
-                      )}?type=${encodeURIComponent(
-                        type
-                      )}`
-                    );
-                  }
-                });
-              }
-            );
-        } else {
-          /*
-           * Fallback when the browser doesn't expose
-           * a camera device ID.
-           */
-          controls =
-            await reader.decodeFromConstraints(
-              {
-                video: {
-                  facingMode: {
-                    ideal: "environment",
-                  },
-                  width: {
-                    ideal: 1280,
-                  },
-                  height: {
-                    ideal: 720,
-                  },
-                  frameRate: {
-                    ideal: 30,
-                    max: 30,
-                  },
-                },
-                audio: false,
-              },
-              video,
-              (result) => {
-                if (
-                  !result ||
-                  cancelled ||
-                  !mountedRef.current ||
-                  processingRef.current
-                ) {
-                  return;
-                }
-
-                const text =
-                  result.getText();
-
-                const token =
-                  extractToken(text);
-
-                if (!token) {
-                  return;
-                }
-
-                processingRef.current = true;
-
-                void cleanup().finally(() => {
-                  if (
-                    !cancelled &&
-                    mountedRef.current
-                  ) {
-                    router.push(
-                      `/verify/${encodeURIComponent(
-                        token
-                      )}?type=${encodeURIComponent(
-                        type
-                      )}`
-                    );
-                  }
-                });
-              }
-            );
-        }
+        const controls =
+          await reader.decodeFromVideoElement(
+            video,
+            handleResult
+          );
 
         if (
           cancelled ||
@@ -387,7 +280,7 @@ export default function QrScanner({
             // Ignore cleanup errors.
           }
 
-          await cleanup();
+          stopCamera();
           return;
         }
 
@@ -395,7 +288,7 @@ export default function QrScanner({
 
         setStatus("scanning");
       } catch (error) {
-        await cleanup();
+        stopCamera();
 
         if (
           cancelled ||
@@ -414,7 +307,7 @@ export default function QrScanner({
           );
         }
       }
-    }
+    };
 
     void startScanner();
 
@@ -423,17 +316,22 @@ export default function QrScanner({
       mountedRef.current = false;
       processingRef.current = true;
 
-      void cleanup();
+      stopCamera();
     };
   }, [router, type]);
 
   return (
     <div className="relative mx-auto h-[70vh] min-h-[500px] w-full max-w-md overflow-hidden bg-black">
       {/* Camera */}
-      <div
-        id={READER_ID}
-        className="relative z-0 h-full w-full overflow-hidden bg-black"
-      />
+      <div className="relative z-0 h-full w-full overflow-hidden bg-black">
+        <video
+          ref={videoRef}
+          className="block h-full w-full object-cover"
+          autoPlay
+          muted
+          playsInline
+        />
+      </div>
 
       {/* Top bar */}
       {status === "scanning" && (
@@ -442,7 +340,17 @@ export default function QrScanner({
             Placer le QR code
           </p>
 
-          <Badge size={28} />
+          {/* Scanner logo */}
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg p-1 shadow-md">
+            <Image
+              src="/images/scan.png"
+              alt="QR Scanner"
+              width={60}
+              height={60}
+              className="h-full w-full object-contain"
+              priority
+            />
+          </div>
         </div>
       )}
 
@@ -482,26 +390,32 @@ export default function QrScanner({
         </div>
       </div>
 
-      {/* Bottom status */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-navy-dark/95 to-transparent px-6 pb-8 pt-16 text-center">
-        {status === "loading" && (
+      {/* Loading status */}
+      {status === "loading" && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-navy-dark/95 to-transparent px-6 pb-8 pt-16 text-center">
           <p className="text-sm font-semibold text-white/80">
             Activation de la caméra…
           </p>
-        )}
+        </div>
+      )}
 
-        {status === "scanning" && (
+      {/* Scanning status */}
+      {status === "scanning" && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-navy-dark/95 to-transparent px-6 pb-8 pt-16 text-center">
           <p className="text-sm font-semibold text-white/80">
-            Placez le QR code de la carte dans le cadre
+            Placez le QR code de la carte VTC dans le cadre
           </p>
-        )}
+        </div>
+      )}
 
-        {status === "error" && (
+      {/* Error status */}
+      {status === "error" && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-navy-dark/95 to-transparent px-6 pb-8 pt-16 text-center">
           <p className="break-words text-sm font-semibold text-red">
             {errorMessage}
           </p>
-        )}
-      </div>
+        </div>
+      )}
 
       <style jsx>{`
         @keyframes qrScannerLine {
