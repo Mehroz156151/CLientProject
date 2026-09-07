@@ -13,7 +13,9 @@ import {
 } from "@/components/icons";
 import { verificationCopy } from "@/lib/verification-types";
 
-type Result = { player: Player | null };
+type Result = {
+  player: Player | null;
+};
 
 const MIN_LOADING_MS = 1100;
 
@@ -68,6 +70,9 @@ export default function VerifyClient({
     };
   }, [token, type]);
 
+  /*
+   * CHARGEMENT
+   */
   if (!result) {
     return (
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-16 text-center">
@@ -102,6 +107,9 @@ export default function VerifyClient({
 
   const player = result.player;
 
+  /*
+   * PROFIL INTROUVABLE
+   */
   if (!player) {
     return (
       <main className="mx-auto w-full max-w-md flex-1 px-4 py-8">
@@ -112,7 +120,10 @@ export default function VerifyClient({
             </p>
 
             <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-red/10 px-3 py-1">
-              <IconAlert size={16} className="text-red" />
+              <IconAlert
+                size={16}
+                className="text-red"
+              />
 
               <span className="text-sm font-bold text-red">
                 INTROUVABLE
@@ -122,9 +133,9 @@ export default function VerifyClient({
 
           <div className="px-5 py-6 text-center">
             <p className="text-sm text-muted">
-              Aucun élément ne correspond à cette référence. Elle est
-              peut-être invalide, expirée ou n&apos;existe pas dans nos
-              bases.
+              Aucun élément ne correspond à cette référence.
+              Elle est peut-être invalide, expirée ou n&apos;existe
+              pas dans nos bases.
             </p>
           </div>
         </div>
@@ -151,7 +162,11 @@ export default function VerifyClient({
 
   const isValid = player.status === "valid";
 
-  // Vehicle is intentionally always considered unknown/not verified.
+  /*
+   * IMPORTANT :
+   * Le véhicule est volontairement TOUJOURS considéré
+   * comme inconnu / non vérifié.
+   */
   const vehicleOk = false;
 
   const statusLabel =
@@ -174,18 +189,24 @@ export default function VerifyClient({
 
             <div
               className={`mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 ${
-                isValid ? "bg-green/10" : "bg-red/10"
+                isValid
+                  ? "bg-green/10"
+                  : "bg-red/10"
               }`}
             >
               <span
                 className={`h-2 w-2 rounded-full ${
-                  isValid ? "bg-green" : "bg-red"
+                  isValid
+                    ? "bg-green"
+                    : "bg-red"
                 }`}
               />
 
               <span
                 className={`text-sm font-bold ${
-                  isValid ? "text-green" : "text-red"
+                  isValid
+                    ? "text-green"
+                    : "text-red"
                 }`}
               >
                 {statusLabel}
@@ -213,7 +234,7 @@ export default function VerifyClient({
           </div>
         </div>
 
-        {/* HOLDER */}
+        {/* TITULAIRE */}
         <div className="border-b border-border px-5 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted">
             Titulaire
@@ -228,7 +249,7 @@ export default function VerifyClient({
           </p>
         </div>
 
-        {/* CARD DETAILS */}
+        {/* DÉTAILS DE LA CARTE */}
         {copy.showCardDetails && (
           <div className="grid grid-cols-2 gap-4 border-b border-border px-5 py-4 text-sm">
             <div>
@@ -273,7 +294,7 @@ export default function VerifyClient({
           </div>
         )}
 
-        {/* VEHICLE */}
+        {/* VÉHICULE */}
         {copy.showVehicle && (
           <div className="border-b border-border px-5 py-4">
             <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted">
@@ -285,18 +306,19 @@ export default function VerifyClient({
                 <IconCar size={18} />
               </span>
 
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-navy">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-red">
                   Véhicule inconnu
                 </p>
 
                 <p className="text-xs text-muted">
-                  Aucun véhicule associé à ce contrôle.
+                  Aucun véhicule vérifié pour ce contrôle.
                 </p>
               </div>
 
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red/10 text-red">
-                <span className="text-lg font-bold leading-none">
+              {/* CROIX ROUGE TOUJOURS VISIBLE */}
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red/10 text-red">
+                <span className="text-2xl font-bold leading-none">
                   ×
                 </span>
               </span>
@@ -304,7 +326,7 @@ export default function VerifyClient({
           </div>
         )}
 
-        {/* CONTROL */}
+        {/* CONTRÔLE */}
         <div className="px-5 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted">
             Contrôle
@@ -327,7 +349,7 @@ export default function VerifyClient({
                   {isOk ? (
                     <IconCheck
                       size={16}
-                      className="text-green"
+                      className="shrink-0 text-green"
                     />
                   ) : (
                     <span className="flex h-4 w-4 shrink-0 items-center justify-center text-red">
@@ -353,23 +375,31 @@ export default function VerifyClient({
             })}
           </ul>
 
+          {/* RÉSUMÉ DU CONTRÔLE */}
           <div
             className={`mt-3 rounded-lg px-3 py-2 text-sm font-semibold ${
-              isValid
-                ? "bg-green/10 text-green"
-                : "bg-red/10 text-red"
+              isValid && !vehicleOk
+                ? "bg-red/10 text-red"
+                : isValid
+                  ? "bg-green/10 text-green"
+                  : "bg-red/10 text-red"
             }`}
           >
-            {isValid
-              ? "Aucune anomalie relevée"
-              : "Anomalie détectée sur ce profil"}
+            {isValid && !vehicleOk
+              ? "Anomalie détectée : véhicule inconnu"
+              : isValid
+                ? "Aucune anomalie relevée"
+                : "Anomalie détectée sur ce profil"}
           </div>
         </div>
       </div>
 
       {/* ACTIONS */}
       <div className="mt-4 space-y-2">
-        <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface py-3.5 font-display text-sm font-bold tracking-wide text-navy hover:bg-surface-muted">
+        <button
+          type="button"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface py-3.5 font-display text-sm font-bold tracking-wide text-navy hover:bg-surface-muted"
+        >
           <IconDocument size={18} />
           CONSULTER LES DÉTAILS
         </button>
